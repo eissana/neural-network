@@ -59,12 +59,18 @@ def __img_show(file, row):
 
 
 def __transform(data):
-    data_list = data.split(',')
-    label = data_list[0]
-    return np.asfarray(data_list[1:]) / 255.0 * 0.99 + 0.01, label
+    return data / 255.0 * 0.99 + 0.01
+
+
+def __target(num_nodes, label):
+    target = np.zeros(num_nodes) + 0.01
+    target[label] = 0.99
+    return target
 
 
 def __main():
+    import pandas as pd
+
     train_data_file = "mnist_dataset/mnist_train_100.csv"
     # __img_show(train_data_file, 3)
 
@@ -76,23 +82,19 @@ def __main():
     out_nodes = 10 # number of digits (target classes)
     nn = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.3, epoch=2)
 
-    with open(train_data_file, "r") as f:
-        train_data = f.readlines()
+    train_df = pd.read_csv(train_data_file).T
 
-    for row in train_data:
-        inputs, label = __transform(row)
-
-        target_list = np.zeros(out_nodes) + 0.01
-        target_list[int(label)] = 0.99
+    for _, train_record in train_df.iteritems():
+        inputs = __transform(train_record[1:])
+        target_list = __target(out_nodes, train_record[0])
 
         nn.train(inputs, target_list)
 
-    with open(test_data_file, "r") as f:
-        test_data = f.readlines()
+    test_df = pd.read_csv(test_data_file).T
 
-    for row in test_data:
-        test_input, label = __transform(row)
-        print(f"actual: {label}, predicted: {np.argmax(nn.query(test_input))}")
+    for _, test_record in test_df.iteritems():
+        test_input = __transform(test_record[1:])
+        print(f"actual: {test_record[0]}, predicted: {np.argmax(nn.query(test_input))}")
 
 
 if __name__ == "__main__":
