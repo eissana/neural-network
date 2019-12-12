@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.special
+import pandas as pd
 
 
 class NeuralNetwork(object):
@@ -16,11 +17,18 @@ class NeuralNetwork(object):
 
         self.__activation = scipy.special.expit
 
-    def train(self, inputs_list, targets_list):
+    def fit(self, train_x, train_y):
+        for idx, (_, record) in enumerate(train_x.iteritems()):
+            scaled = self.__transform(record)
+            target = self.__target(train_y[idx])
+
+            self.__train(scaled, target)
+
+    def __train(self, inputs_list, targets_list):
         inputs = self.__convert_data(inputs_list)
         targets = self.__convert_data(targets_list)
 
-        hid_outputs, final_outputs = self.__query(inputs)
+        hid_outputs, final_outputs = self.__predict(inputs)
 
         out_errors = targets - final_outputs
         hid_errors = np.dot(self.__weights_hid_out.T, out_errors)
@@ -29,16 +37,20 @@ class NeuralNetwork(object):
         self.__weights_in_hid += self.__learn_rate * np.dot(hid_errors * hid_outputs * (1. - hid_outputs), inputs.T)
 
 
-    def query(self, inputs_list):
-        inputs = self.__convert_data(inputs_list)
-        _, final_outputs = self.__query(inputs)
+    def predict(self, test_x):
+        predicted = pd.Series()
+        for idx, record in test_x.iteritems():
+            inputs = self.__convert_data(record)
+            scaled = self.__transform(inputs)
+            _, final_outputs = self.__predict(scaled)
+            predicted.at[idx] = np.argmax(final_outputs)
         
-        return final_outputs
+        return predicted
 
     def __convert_data(self, data_list):
         return np.array(data_list, ndmin=2).T
 
-    def __query(self, inputs):
+    def __predict(self, inputs):
         hid_inputs = np.dot(self.__weights_in_hid, inputs)
         hid_outputs = self.__activation(hid_inputs)
 
@@ -46,6 +58,16 @@ class NeuralNetwork(object):
         final_outputs = self.__activation(final_inputs)
         
         return hid_outputs, final_outputs
+
+    @staticmethod
+    def __transform(data):
+        return data / 255.0 * 0.99 + 0.01
+
+
+    def __target(self, label):
+        target = np.zeros(self.__out_nodes) + 0.01
+        target[label] = 0.99
+        return target
 
 
 def __img_show(file, row):
@@ -58,18 +80,8 @@ def __img_show(file, row):
         plt.show()
 
 
-def __transform(data):
-    return data / 255.0 * 0.99 + 0.01
-
-
-def __target(num_nodes, label):
-    target = np.zeros(num_nodes) + 0.01
-    target[label] = 0.99
-    return target
-
-
 def __main():
-    import pandas as pd
+    from sklearn.metrics import confusion_matrix
 
     train_data_file = "mnist_dataset/mnist_train_100.csv"
     # __img_show(train_data_file, 3)
@@ -77,24 +89,27 @@ def __main():
     test_data_file = "mnist_dataset/mnist_test_10.csv"
     # __img_show(test_data_file, 1)
 
+    train_df = pd.read_csv(train_data_file)
+    train_x = train_df.iloc[:, 1:].T
+    train_y = train_df.iloc[:, 0]
+
     in_nodes = 784 # number of features
     hid_nodes = 100
     out_nodes = 10 # number of digits (target classes)
     nn = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.3, epoch=2)
+    nn.fit(train_x, train_y)
 
-    train_df = pd.read_csv(train_data_file).T
+    test_df = pd.read_csv(test_data_file)
+    test_x = test_df.iloc[:, 1:].T
+    actual = test_df.iloc[:, 0]
 
-    for _, train_record in train_df.iteritems():
-        inputs = __transform(train_record[1:])
-        target_list = __target(out_nodes, train_record[0])
+    predicted = nn.predict(test_x)
 
-        nn.train(inputs, target_list)
-
-    test_df = pd.read_csv(test_data_file).T
-
-    for _, test_record in test_df.iteritems():
-        test_input = __transform(test_record[1:])
-        print(f"actual: {test_record[0]}, predicted: {np.argmax(nn.query(test_input))}")
+    print("confusion matrix:\n", confusion_matrix(actual, predicted))
+    result = pd.DataFrame(columns=['Actual', 'Predicted'])
+    result['Actual'] = actual
+    result['Predicted'] = predicted
+    print(f"actual vs. predicted:\n {result}")
 
 
 if __name__ == "__main__":
