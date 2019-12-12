@@ -91,7 +91,7 @@ def __main():
     test_data_file = "mnist_dataset/mnist_test.csv"
     # __img_show(test_data_file, 1)
 
-    train_df = pd.read_csv(train_data_file)
+    train_df = pd.read_csv(train_data_file, header=None)
     train_x = train_df.iloc[:, 1:].T
     train_y = train_df.iloc[:, 0]
 
@@ -101,7 +101,7 @@ def __main():
     nn = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.3, epoch=2)
     nn.fit(train_x, train_y)
 
-    test_df = pd.read_csv(test_data_file)
+    test_df = pd.read_csv(test_data_file, header=None)
     test_x = test_df.iloc[:, 1:].T
     actual = test_df.iloc[:, 0]
 
