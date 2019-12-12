@@ -12,17 +12,19 @@ class NeuralNetwork(object):
 
         self.__learn_rate = learn_rate
 
+        np.random.seed(1)
         self.__weights_in_hid = np.random.normal(0.0, 1. / np.sqrt(self.__hid_nodes), (self.__hid_nodes, self.__in_nodes))
         self.__weights_hid_out = np.random.normal(0.0, 1. / np.sqrt(self.__out_nodes), (self.__out_nodes, self.__hid_nodes))
 
         self.__activation = scipy.special.expit
 
     def fit(self, train_x, train_y):
-        for idx, (_, record) in enumerate(train_x.iteritems()):
-            scaled = self.__transform(record)
-            target = self.__target(train_y[idx])
+        for _ in range(self.__epoch):
+            for idx, (_, record) in enumerate(train_x.iteritems()):
+                scaled = self.__transform(record)
+                target = self.__target(train_y[idx])
 
-            self.__train(scaled, target)
+                self.__train(scaled, target)
 
     def __train(self, inputs_list, targets_list):
         inputs = self.__convert_data(inputs_list)
@@ -81,12 +83,12 @@ def __img_show(file, row):
 
 
 def __main():
-    from sklearn.metrics import confusion_matrix
+    from sklearn.metrics import confusion_matrix, accuracy_score
 
-    train_data_file = "mnist_dataset/mnist_train_100.csv"
+    train_data_file = "mnist_dataset/mnist_train.csv"
     # __img_show(train_data_file, 3)
 
-    test_data_file = "mnist_dataset/mnist_test_10.csv"
+    test_data_file = "mnist_dataset/mnist_test.csv"
     # __img_show(test_data_file, 1)
 
     train_df = pd.read_csv(train_data_file)
@@ -105,7 +107,10 @@ def __main():
 
     predicted = nn.predict(test_x)
 
+    print("accuracy score:", accuracy_score(actual, predicted))
+
     print("confusion matrix:\n", confusion_matrix(actual, predicted))
+
     result = pd.DataFrame(columns=['Actual', 'Predicted'])
     result['Actual'] = actual
     result['Predicted'] = predicted
