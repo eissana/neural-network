@@ -1,3 +1,6 @@
 .vscode
+__pycache__
 nn-env
 mnist_dataset
+images
+model

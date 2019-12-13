@@ -2,6 +2,8 @@ import numpy as np
 import scipy.special
 import pandas as pd
 
+from app.util import transform, img_read
+
 
 class NeuralNetwork(object):
     def __init__(self, in_nodes, hid_nodes, out_nodes, learn_rate, epoch):
@@ -21,7 +23,7 @@ class NeuralNetwork(object):
     def fit(self, train_x, train_y):
         for _ in range(self.__epoch):
             for idx, (_, record) in enumerate(train_x.iteritems()):
-                scaled = self.__transform(record)
+                scaled = transform(record)
                 target = self.__target(train_y[idx])
 
                 self.__train(scaled, target)
@@ -43,7 +45,7 @@ class NeuralNetwork(object):
         predicted = pd.Series()
         for idx, record in test_x.iteritems():
             inputs = self.__convert_data(record)
-            scaled = self.__transform(inputs)
+            scaled = transform(inputs)
             _, final_outputs = self.__predict(scaled)
             predicted.at[idx] = np.argmax(final_outputs)
         
@@ -61,46 +63,44 @@ class NeuralNetwork(object):
         
         return hid_outputs, final_outputs
 
-    @staticmethod
-    def __transform(data):
-        return data / 255.0 * 0.99 + 0.01
-
-
     def __target(self, label):
         target = np.zeros(self.__out_nodes) + 0.01
         target[label] = 0.99
         return target
 
 
-def __img_show(file, row):
-    with open(file, "r") as f:
-        import matplotlib.pyplot as plt
-
-        data_list = f.readlines()
-        img = np.asfarray(data_list[row].split(',')[1:]).reshape((28, 28))
-        plt.imshow(img, cmap='Greys', interpolation='None')
-        plt.show()
-
-
-def __main():
+def __run():
     from sklearn.metrics import confusion_matrix, accuracy_score
+    import pickle
+    import os.path
 
-    train_data_file = "mnist_dataset/mnist_train.csv"
-    # __img_show(train_data_file, 3)
+    model_file = "model/nn.pkl"
+
+    if os.path.isfile(model_file):
+        with open(model_file, 'rb') as f:
+            nn = pickle.load(f)
+    else:
+        in_nodes = 784 # number of features
+        hid_nodes = 100
+        out_nodes = 10 # number of digits (target classes)
+
+        train_data_file = "mnist_dataset/mnist_train.csv"
+        train_df = pd.read_csv(train_data_file, header=None)
+        train_x = train_df.iloc[:, 1:].T
+        train_y = train_df.iloc[:, 0]
+
+        nn = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.3, epoch=2)
+        nn.fit(train_x, train_y)
+
+        with open(model_file, 'wb') as f:
+            pickle.dump(nn, f)
+
+    # digit = 1
+    # test_x = pd.DataFrame(img_read(f"images/{digit}.png").reshape((-1, 1)))
+    # predicted = nn.predict(test_x)
+    # actual = pd.Series([digit])
 
     test_data_file = "mnist_dataset/mnist_test.csv"
-    # __img_show(test_data_file, 1)
-
-    train_df = pd.read_csv(train_data_file, header=None)
-    train_x = train_df.iloc[:, 1:].T
-    train_y = train_df.iloc[:, 0]
-
-    in_nodes = 784 # number of features
-    hid_nodes = 100
-    out_nodes = 10 # number of digits (target classes)
-    nn = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.3, epoch=2)
-    nn.fit(train_x, train_y)
-
     test_df = pd.read_csv(test_data_file, header=None)
     test_x = test_df.iloc[:, 1:].T
     actual = test_df.iloc[:, 0]
@@ -118,4 +118,4 @@ def __main():
 
 
 if __name__ == "__main__":
-    __main()
+    __run()
