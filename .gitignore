@@ -1,6 +1,6 @@
 .vscode
 __pycache__
-nn-env
+venv
 mnist_dataset
 images
 model
