@@ -74,7 +74,7 @@ def __run():
     import pickle
     import os.path
 
-    model_file = "model/nn.pkl"
+    model_file = "model/nn-1.pkl"
 
     if os.path.isfile(model_file):
         with open(model_file, 'rb') as f:

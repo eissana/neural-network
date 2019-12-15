@@ -14,7 +14,8 @@ class Generator(nn.Module):
         self.pipe = nn.Sequential(
             nn.Linear(in_nodes, hid_nodes),
             nn.ReLU(),
-            nn.Linear(hid_nodes, out_nodes)
+            nn.Linear(hid_nodes, out_nodes),
+            nn.Softmax(dim=0)
         )
         self.__epoch = epoch
 
@@ -70,7 +71,7 @@ def __run():
     import pickle
     import os.path
 
-    model_file = "model/nn.pkl"
+    model_file = "model/nn-2.pkl"
 
     if os.path.isfile(model_file):
         with open(model_file, 'rb') as f:
