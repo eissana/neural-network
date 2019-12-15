@@ -1,64 +1,101 @@
 import torch
 import torch.nn as nn
+import pandas as pd
 from torch import optim
 import torchvision
 import torchvision.transforms as transforms
+import numpy as np
+
+from app.util import transform
+
+
+class Generator(nn.Module):
+    def __init__(self, in_nodes, hid_nodes, out_nodes, epoch):
+        super(Generator, self).__init__()
+
+        self.pipe = nn.Sequential(
+            nn.Linear(in_nodes, hid_nodes[0]),
+            nn.ReLU(),
+            nn.Linear(hid_nodes[0], hid_nodes[1]),
+            nn.ReLU(),
+            nn.Linear(hid_nodes[1], out_nodes),
+            nn.LogSoftmax(dim=1)
+        )
+        self.__epoch = epoch
+
+    def forward(self, x):
+        return self.pipe(x)
+
+
+class NeuralNetwork(object):
+    def __init__(self, in_nodes, hid_nodes, out_nodes, learn_rate, epoch):
+        self.__nn = Generator(in_nodes, hid_nodes, out_nodes, epoch)
+        self.__gen_optimizer = optim.SGD(params=self.__nn.parameters(), lr=learn_rate, momentum=0.9)
+
+        self.__epoch = epoch
+        self.__out_nodes = out_nodes
+
+
+    def fit(self, train_data):
+        objective = nn.NLLLoss()
+
+        for epoch in range(self.__epoch):
+            for idx, (x, y) in enumerate(train_data):
+                x = x.view(x.shape[0], -1)
+                output = self.__nn(x)
+                loss = objective(output, y)
+                loss.backward()
+
+                self.__gen_optimizer.step()
+                self.__gen_optimizer.zero_grad()
+
+                if (idx + 1) % 100 == 0:
+                    print(f'epoch [{epoch + 1}/{self.__epoch}], step [{idx + 1}/{len(train_data)}], loss: {loss.item()}')
+
+
+    def accuracy(self, test_data):
+        self.__nn.eval()
+
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            for x, y in test_data:
+                x = x.view(x.shape[0], -1)
+                output = self.__nn(x)
+                _, predicted = torch.max(output.data, 1)
+                total += y.size(0)
+                correct += (predicted == y).sum().item()
+        
+        return correct / total
 
 
 def __run():
-    in_nodes = 784 # number of features
-    hid_nodes = [128, 64]
-    out_nodes = 10 # number of digits (target classes)
-    epoch = 2
-    learn_rate = 0.003
+    import pickle
+    import os.path
 
+    model_file = "model/nn-2.pkl"
 
-    train_data = torchvision.datasets.MNIST('mnist_dataset', download=True, train=True, transform=transforms.ToTensor())
-    train_data = torch.utils.data.DataLoader(train_data, batch_size=64, shuffle=True)
+    if os.path.isfile(model_file):
+        with open(model_file, 'rb') as f:
+            neural_net = pickle.load(f)
+    else:
+        in_nodes = 784 # number of features
+        hid_nodes = [128, 64]
+        out_nodes = 10 # number of digits (target classes)
 
-    model = nn.Sequential(
-        nn.Linear(in_nodes, hid_nodes[0]),
-        nn.ReLU(),
-        nn.Linear(hid_nodes[0], hid_nodes[1]),
-        nn.ReLU(),
-        nn.Linear(hid_nodes[1], out_nodes),
-        nn.LogSoftmax(dim=1)
-    )
+        train_data = torchvision.datasets.MNIST('mnist_dataset', download=True, train=True, transform=transforms.ToTensor())
+        train_data = torch.utils.data.DataLoader(train_data, batch_size=64, shuffle=True)
 
-    objective = nn.NLLLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learn_rate, momentum=0.9)    
+        neural_net = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.003, epoch=10)
+        neural_net.fit(train_data)
 
-    for e in range(epoch):
-        for i, (x, y) in enumerate(train_data):
-            x = x.view(x.shape[0], -1)
-            output = model(x)
-            loss = objective(output, y)
-            loss.backward()
-
-            optimizer.step()
-            optimizer.zero_grad()
-
-            if (i + 1) % 100 == 0:
-                print(f'epoch [{e + 1}/{epoch}], step [{i + 1}/{len(train_data)}], loss: {loss.item()}')
-
-    model.eval()
+        with open(model_file, 'wb') as f:
+            pickle.dump(neural_net, f)
 
     test_data = torchvision.datasets.MNIST('mnist_dataset', download=True, train=False, transform=transforms.ToTensor())
     test_data = torch.utils.data.DataLoader(test_data, batch_size=64, shuffle=True)
 
-    with torch.no_grad():
-        correct = 0
-        total = 0
-        for x, y in test_data:
-            x = x.view(x.shape[0], -1)
-            outputs = model(x)
-            _, predicted = torch.max(outputs.data, 1)
-            total += y.size(0)
-            correct += (predicted == y).sum().item()
-
-        print(f'Test Accuracy of the model on the {len(test_data)} test images: {100 * correct / total}')
-
-    torch.save(model.state_dict(), 'model/nn.pt')       
+    print(f"accuracy:\n {100 * neural_net.accuracy(test_data)}")
 
 
 if __name__ == "__main__":
