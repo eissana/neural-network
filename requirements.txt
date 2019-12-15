@@ -5,4 +5,4 @@ matplotlib==3.1.2
 imageio==2.6.1
 scikit-learn==0.22
 torch==0.4.1
-
+torchvision==0.2.1
