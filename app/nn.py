@@ -29,8 +29,8 @@ class Generator(nn.Module):
 
 class NeuralNetwork(object):
     def __init__(self, in_nodes, hid_nodes, out_nodes, learn_rate, epoch):
-        self.__nn = Generator(in_nodes, hid_nodes, out_nodes, epoch)
-        self.__gen_optimizer = optim.SGD(params=self.__nn.parameters(), lr=learn_rate, momentum=0.9)
+        self.__model = Generator(in_nodes, hid_nodes, out_nodes, epoch)
+        self.__gen_optimizer = optim.SGD(params=self.__model.parameters(), lr=learn_rate, momentum=0.9)
 
         self.__epoch = epoch
         self.__out_nodes = out_nodes
@@ -42,7 +42,7 @@ class NeuralNetwork(object):
         for epoch in range(self.__epoch):
             for idx, (x, y) in enumerate(train_data):
                 x = x.view(x.shape[0], -1)
-                output = self.__nn(x)
+                output = self.__model(x)
                 loss = objective(output, y)
                 loss.backward()
 
@@ -54,22 +54,35 @@ class NeuralNetwork(object):
 
 
     def accuracy(self, test_data):
-        self.__nn.eval()
+        self.__model.eval()
 
         with torch.no_grad():
             correct = 0
             total = 0
             for x, y in test_data:
                 x = x.view(x.shape[0], -1)
-                output = self.__nn(x)
-                _, predicted = torch.max(output.data, 1)
+                output = self.__model(x)
+                _, pred = torch.max(output.data, 1)
                 total += y.size(0)
-                correct += (predicted == y).sum().item()
+                correct += (pred == y).sum().item()
         
         return correct / total
 
+    def predict(self, test_data):
+        actual = torch.LongTensor()
+        predicted = torch.LongTensor()
+        with torch.no_grad():
+            for x, y in test_data:
+                x = x.view(x.shape[0], -1)
+                actual = torch.cat((actual, y))
+                output = self.__model(x)
+                _, pred = torch.max(output.data, 1)
+                predicted = torch.cat((predicted, pred))
+        return predicted, actual
+
 
 def __run():
+    from sklearn.metrics import confusion_matrix, accuracy_score
     import pickle
     import os.path
 
@@ -77,7 +90,7 @@ def __run():
 
     if os.path.isfile(model_file):
         with open(model_file, 'rb') as f:
-            neural_net = pickle.load(f)
+            net = pickle.load(f)
     else:
         in_nodes = 784 # number of features
         hid_nodes = [128, 64]
@@ -86,16 +99,24 @@ def __run():
         train_data = torchvision.datasets.MNIST('mnist_dataset', download=True, train=True, transform=transforms.ToTensor())
         train_data = torch.utils.data.DataLoader(train_data, batch_size=64, shuffle=True)
 
-        neural_net = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.003, epoch=10)
-        neural_net.fit(train_data)
+        net = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.003, epoch=10)
+        net.fit(train_data)
 
         with open(model_file, 'wb') as f:
-            pickle.dump(neural_net, f)
+            pickle.dump(net, f)
 
     test_data = torchvision.datasets.MNIST('mnist_dataset', download=True, train=False, transform=transforms.ToTensor())
     test_data = torch.utils.data.DataLoader(test_data, batch_size=64, shuffle=True)
 
-    print(f"accuracy:\n {100 * neural_net.accuracy(test_data)}")
+    predicted, actual = net.predict(test_data)
+
+    print("accuracy score:", accuracy_score(actual, predicted))
+    print("confusion matrix:\n", confusion_matrix(actual, predicted))
+
+    result = pd.DataFrame(columns=['Actual', 'Predicted'])
+    result['Actual'] = actual
+    result['Predicted'] = predicted
+    print(f"actual vs. predicted:\n {result}")
 
 
 if __name__ == "__main__":
