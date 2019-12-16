@@ -21,12 +21,15 @@ class NeuralNetwork(object):
         self.__activation = scipy.special.expit
 
     def fit(self, train_x, train_y):
-        for _ in range(self.__epoch):
-            for idx, (_, record) in enumerate(train_x.iteritems()):
+        for e in range(self.__epoch):
+            for idx, (_, record) in enumerate(train_x.T.iteritems()):
                 scaled = transform(record)
                 target = self.__target(train_y[idx])
 
                 self.__train(scaled, target)
+
+                if (idx + 1) % 1000 == 0:
+                    print(f'epoch [{e + 1}/{self.__epoch}], step [{idx + 1}/{train_x.shape[0]}]')
 
     def __train(self, inputs_list, targets_list):
         inputs = self.__convert_data(inputs_list)
@@ -43,7 +46,7 @@ class NeuralNetwork(object):
 
     def predict(self, test_x):
         predicted = pd.Series()
-        for idx, record in test_x.iteritems():
+        for idx, record in test_x.T.iteritems():
             inputs = self.__convert_data(record)
             scaled = transform(inputs)
             _, final_outputs = self.__predict(scaled)
@@ -78,7 +81,7 @@ def __run():
 
     if os.path.isfile(model_file):
         with open(model_file, 'rb') as f:
-            nn = pickle.load(f)
+            net = pickle.load(f)
     else:
         in_nodes = 784 # number of features
         hid_nodes = 100
@@ -86,26 +89,26 @@ def __run():
 
         train_data_file = "mnist_dataset/mnist_train.csv"
         train_df = pd.read_csv(train_data_file, header=None)
-        train_x = train_df.iloc[:, 1:].T
+        train_x = train_df.iloc[:, 1:]
         train_y = train_df.iloc[:, 0]
 
-        nn = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.3, epoch=2)
-        nn.fit(train_x, train_y)
+        net = NeuralNetwork(in_nodes=in_nodes, hid_nodes=hid_nodes, out_nodes=out_nodes, learn_rate=0.3, epoch=2)
+        net.fit(train_x, train_y)
 
         with open(model_file, 'wb') as f:
-            pickle.dump(nn, f)
+            pickle.dump(net, f)
 
     # digit = 1
     # test_x = pd.DataFrame(img_read(f"images/{digit}.png").reshape((-1, 1)))
-    # predicted = nn.predict(test_x)
+    # predicted = net.predict(test_x)
     # actual = pd.Series([digit])
 
     test_data_file = "mnist_dataset/mnist_test.csv"
     test_df = pd.read_csv(test_data_file, header=None)
-    test_x = test_df.iloc[:, 1:].T
+    test_x = test_df.iloc[:, 1:]
     actual = test_df.iloc[:, 0]
 
-    predicted = nn.predict(test_x)
+    predicted = net.predict(test_x)
 
     print("accuracy score:", accuracy_score(actual, predicted))
 
