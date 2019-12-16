@@ -83,14 +83,13 @@ class NeuralNetwork(object):
 
 def __run():
     from sklearn.metrics import confusion_matrix, accuracy_score
-    import pickle
     import os.path
 
-    model_file = "model/nn-2.pkl"
+    model_file = "model/nn.pt"
 
     if os.path.isfile(model_file):
         with open(model_file, 'rb') as f:
-            net = pickle.load(f)
+            net = torch.load(f)
     else:
         in_nodes = 784 # number of features
         hid_nodes = [128, 64]
@@ -103,7 +102,7 @@ def __run():
         net.fit(train_data)
 
         with open(model_file, 'wb') as f:
-            pickle.dump(net, f)
+            torch.save(net, f)
 
     test_data = torchvision.datasets.MNIST('mnist_dataset', download=True, train=False, transform=transforms.ToTensor())
     test_data = torch.utils.data.DataLoader(test_data, batch_size=64, shuffle=True)
