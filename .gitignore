@@ -3,4 +3,7 @@ __pycache__
 venv
 mnist_dataset
 images
-model
+models
+build
+dist
+*.egg-info

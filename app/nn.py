@@ -84,8 +84,9 @@ class NeuralNetwork(object):
 def __run():
     from sklearn.metrics import confusion_matrix, accuracy_score
     import os.path
+    from app.__init__ import MODELS_DIR
 
-    model_file = "model/nn.pt"
+    model_file = f"{MODELS_DIR}/nn.pt"
 
     if os.path.isfile(model_file):
         with open(model_file, 'rb') as f:
