@@ -76,7 +76,7 @@ def __run():
     from sklearn.metrics import confusion_matrix, accuracy_score
     import pickle
     import os.path
-    from app.__init__ import MODELS_DIR
+    from app import MODELS_DIR
 
     model_file = f"{MODELS_DIR}/nn-.pkl"
 
